@@ -1,0 +1,13 @@
+{
+  "name": "mochi-server",
+  "version": "1.0.0",
+  "description": "MOCHI - Personal AI Companion (local brain + ElevenLabs Hindi voice)",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
