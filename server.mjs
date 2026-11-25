@@ -1,3 +1,4 @@
+import { speakEdge } from "./edgeVoice.mjs";
 import { detectFeel } from "./feel/feel.js";
 import http from "node:http";
 import fs from "node:fs";
@@ -298,6 +299,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
+        try { const edgeBuf = await speakEdge(replyText); if (edgeBuf && edgeBuf.length > 1000) return res.type("audio/mpeg").send(edgeBuf); } catch(e) { console.log("Edge fail, ElevenLabs try", e.message); }
         const audioBuf = await speakHindiWithMood(replyText, activeMood);
         res.writeHead(200, {
           "Content-Type": "audio/mpeg",
