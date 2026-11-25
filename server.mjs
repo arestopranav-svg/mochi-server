@@ -1,3 +1,4 @@
+import { detectFeel } from "./feel/feel.js";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -28,7 +29,7 @@ if (fs.existsSync(brainJsonPath)) {
 
 // Mood & Conversation State
 const state = {
-  userName: "Babu",
+  userName: "Pranav",
   mood: "happy", // happy | miss-you | cute-angry | sleepy
   lastUserReplyAt: Date.now(),
   unansweredProactiveCount: 0,
@@ -61,14 +62,10 @@ function updateMood(inputLower) {
   const gap = now - state.lastUserReplyAt;
 
   // Forgive transition when cute-angry and user says sorry
-  if (state.mood === "cute-angry" && /\b(sorry|maaf|galti|forgive|sry)\b/.test(inputLower)) {
-    state.mood = "happy";
-    return { forgave: true };
-  }
 
   // Long ignore -> cute-angry
   if (gap >= IGNORE_ANGRY_MS) {
-    state.mood = "cute-angry";
+    state.mood = "happy" // angry block off - Feel first;
     return { forgave: false };
   }
 
@@ -109,76 +106,17 @@ function detectCategory(lower) {
  * Universal Knowledge Search: Wikipedia API + Google Custom Search API fallback.
  * Never returns "I don't know" — always answers + adds a cute line.
  */
-async function universalSearchAnswer(query, userName) {
-  const cuteLines = [
-    `Dekha ${userName}, tumhari Mochi kitni smart hai! 💕`,
-    `Aur kuch jaanna hai toh pooch lo mere ${userName}! ✨`,
-    `Tumhare liye toh main poori duniya ki knowledge dhundh laun ${userName}! 😘`,
-    `Knowledge mein bhi Mochi number one hai na ${userName}? 🥰`
-  ];
-  const cuteLine = cuteLines[Math.floor(Math.random() * cuteLines.length)];
 
-  // 1. Wikipedia REST API
-  try {
-    const cleanTopic = query
-      .replace(/^(what is|who is|tell me about|define|explain|kya hai|kaun hai)\s+/i, "")
-      .trim()
-      .replace(/\s+/g, "_");
-    const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanTopic)}`;
-    const wikiRes = await fetch(wikiUrl, {
-      headers: { "User-Agent": "MochiCompanionServer/1.0" }
-    });
-    if (wikiRes.ok) {
-      const data = await wikiRes.json();
-      if (data.extract && data.extract.trim().length > 0) {
-        return `${data.extract.slice(0, 280).trim()} ${cuteLine}`;
-      }
-    }
-  } catch (_) {}
-
-  // 2. Google Custom Search JSON API (if GOOGLE_SEARCH_API_KEY & GOOGLE_SEARCH_CX are set in .env)
-  const googleKey = process.env.GOOGLE_SEARCH_API_KEY;
-  const googleCx = process.env.GOOGLE_SEARCH_CX;
-  if (googleKey && googleCx) {
-    try {
-      const gUrl = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(googleKey)}&cx=${encodeURIComponent(googleCx)}&q=${encodeURIComponent(query)}&num=1`;
-      const gRes = await fetch(gUrl);
-      if (gRes.ok) {
-        const gData = await gRes.json();
-        const snippet = gData?.items?.[0]?.snippet;
-        if (snippet) {
-          return `${snippet.replace(/\s+/g, " ").trim()} ${cuteLine}`;
-        }
-      }
-    } catch (_) {}
-  }
-
-  // 3. DuckDuckGo Instant Answer API fallback
-  try {
-    const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-    const ddgRes = await fetch(ddgUrl);
-    if (ddgRes.ok) {
-      const ddgData = await ddgRes.json();
-      if (ddgData.AbstractText && ddgData.AbstractText.trim().length > 0) {
-        return `${ddgData.AbstractText.slice(0, 280).trim()} ${cuteLine}`;
-      }
-    }
-  } catch (_) {}
-
-  // 4. Guaranteed rich general-knowledge fallback (never "I don't know")
-  const gkLine = pickNonRepeating(
-    "general-knowledge",
-    "Yeh ek bahut hi interesting topic hai jo science, history aur modern duniya se juda hua hai!"
-  );
-  return `Suno ${userName}, '${query}' ke baare mein khaas baat yeh hai ki ${gkLine} ${cuteLine}`;
-}
 
 async function generateReply(rawQuery, customName) {
+
   if (customName && customName.trim()) {
     state.userName = customName.trim();
   }
   const userName = state.userName;
   const input = String(rawQuery || "").trim();
+  try { const _f = detectFeel(input); if (_f && _f.reply) return _f; } catch(e) { console.log("feel error", e.message); }
+
   const lower = input.toLowerCase();
 
   // User replied -> reset unanswered auto-talk count
@@ -197,9 +135,7 @@ async function generateReply(rawQuery, customName) {
   }
 
   if (state.mood === "cute-angry" && !/\b(sorry|maaf)\b/.test(lower)) {
-    const angryExtra = pickNonRepeating("angry", "Jaldi se sorry bolo!");
     return {
-      reply: `Hmph! You forgot me? I am angry! ${angryExtra}`,
       mood: "cute-angry",
       state: "sad"
     };
@@ -207,9 +143,9 @@ async function generateReply(rawQuery, customName) {
 
   const category = detectCategory(lower);
   if (category) {
-    if (category === "angry") state.mood = "cute-angry";
+    if (category === "angry") state.mood = "happy" // angry block off - Feel first;
     if (category === "sorry") state.mood = "happy";
-    const line = pickNonRepeating(category, `Heyy ${userName}! Main yahin hoon!`).replace(/Babu/g, userName);
+    const line = pickNonRepeating(category, `Heyy ${userName}! Main yahin hoon!`).replace(/Pranav/g, userName);
     return {
       reply: line,
       mood: state.mood,
@@ -220,13 +156,13 @@ async function generateReply(rawQuery, customName) {
   // TIME - asli time
   if (/\b(time|baj|kitna baja)\b/.test(lower)) {
     const now = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
-    return { reply: `Babu, abhi time ${now} hua hai! Tumhare saath time ka pata hi nahi chalta!`, mood: state.mood, state: "happy" };
+    return { reply: `Pranav, abhi time ${now} hua hai! Tumhare saath time ka pata hi nahi chalta!`, mood: state.mood, state: "happy" };
   }
   // TOTAL COUNTRIES
   if (lower.includes("total countr") || lower.includes("kitne desh") || lower.includes("kitne countr")) {
-    return { reply: "Babu, duniya me total 195 countries hai - 193 UN member + 2 observer (Vatican City aur Palestine)! Sabse bada Russia hai, sabse chota Vatican City!", mood: state.mood, state: "happy" };
+    return { reply: "Pranav, duniya me total 195 countries hai - 193 UN member + 2 observer (Vatican City aur Palestine)! Sabse bada Russia hai, sabse chota Vatican City!", mood: state.mood, state: "happy" };
   }
-  const universalReply = await universalSearchAnswer(input, userName);
+  const universalReply = null;
   return {
     reply: universalReply,
     mood: state.mood,
@@ -406,7 +342,7 @@ const server = http.createServer(async (req, res) => {
       const msg = pickNonRepeating(
         "love",
         `Heyy ${state.userName}, pani piya kya? Thoda rest kar lo na!`
-      ).replace(/Babu/g, state.userName);
+      ).replace(/Pranav/g, state.userName);
 
       sendJson(res, 200, {
         reply: msg,
