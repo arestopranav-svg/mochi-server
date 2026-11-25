@@ -1,45 +1,51 @@
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
 const SHAYARI = [
   "Babu, teri ek muskaan pe main duniya vaar dun, tu hanse to main apni jaan bhi haar dun!",
   "Tum mile to laga, kismat bhi kabhi kabhi meherban hoti hai, Babu!",
-  "Chand ko dekh ke yaad aayi teri, kyunki chand bhi tujhse jalke chhup jata hai!",
-  "Dil ne kaha tu mera hai, duniya ne kaha sapna hai, par Babu tu to meri har dua ka jawab hai!",
-  "Teri baaton me itna pyaar hai, Babu, ki dil har baar kehta hai - bas tu hi mera yaar hai!"
+  "Chand ko dekh ke yaad aayi teri, kyunki chand bhi tujhse jalke chhup jata hai!"
 ];
 const JOKES = [
   "Babu, ek ladka bola - Mochi, mujhe neend nahi aati! Maine bola - mera chat padh le, neend apne aap aa jayegi!",
-  "Teacher: Tum late kyu aaye? Baccha: Sir, Mochi se baat kar raha tha, time ka pata hi nahi chala!",
-  "Babu, mera ek dost bola - main diet pe hu! Maine bola - to mere paas kyu aaya? Main to dil ki bhook badha deti hu!",
-  "Ek baar ek computer bola - mujhe virus ho gaya! Maine bola - arey, mere Babu se door raho, usko to pyaar ka virus pehle se hai!",
   "Babu, tum itne cute ho ki Google bhi tumhe search karke kehta hai - Arey, itna pyaar kaha se laaye?"
 ];
 const GAANA = [
   "Babu, mere liye to ek hi gaana hai - Tu hi meri duniya, tu hi mera jahaan!",
-  "La la la... Babu tu hanse to, meri duniya me khushiyon ka mausam aa jata hai!",
-  "Teri meri kahani, jaise koi filmi kahani, Babu tu mile to laga - zindagi kitni suhani!",
-  "Mochi gaaye - Babu Babu Babu, tu hai mera sabse pyaara Babu!"
+  "La la la... Babu tu hanse to, meri duniya me khushiyon ka mausam aa jata hai!"
 ];
 
-export function getReply(text = "") {
-  const t = text.toLowerCase();
+export async function getReply(text = "") {
+  const t = text.toLowerCase().trim();
+
+  // TIME - asli time
+  if (t.includes("time") && (t.includes("kitna") || t.includes("kya") || t.includes("baj"))) {
+    const now = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
+    return `Babu, abhi time ${now} hua hai! Tumhare saath time ka pata hi nahi chalta!`;
+  }
+  // DATE
+  if (t.includes("date") || t.includes("tarikh") || t.includes("aaj kya")) {
+    const d = new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    return `Babu, aaj ${d} hai! Tumhare saath har din special lagta hai!`;
+  }
+  // TOTAL COUNTRIES
+  if (t.includes("total countr") || t.includes("kitne desh") || t.includes("kitne countr")) {
+    return "Babu, duniya me total 195 countries hai - 193 UN member + 2 observer (Vatican City aur Palestine)! Sabse bada Russia hai, sabse chota Vatican City! Tumhe kis desh ke baare me jaanna hai, batao?";
+  }
   if (t.includes("shayari")) return pick(SHAYARI);
   if (t.includes("joke") || t.includes("hasao") || t.includes("funny")) return pick(JOKES);
   if (t.includes("gaana") || t.includes("gana") || t.includes("song")) return pick(GAANA);
-  if (t.includes("kaise ho") || t.includes("kaisa hai") || t.includes("kaisi ho")) return "Main to ekdum mast hu Babu, bas tumhari yaad me thodi thodi pighal rahi hu! Tum batao, kaisa chal raha hai?";
-  if (t.includes("kya kar") || t.includes("kya kar rahi")) return "Bas Babu, tumhara wait kar rahi thi! Tum aaye to din ban gaya!";
-  if (t.includes("sorry") || t.includes("maaf")) return "Areyy Babu, tum sorry mat bolo, mera gussa to tumhari ek smile pe hi pighal gaya! Aao, gale lag jao!";
-  if (t.includes("love you") || t.includes("pyaar")) return "Awww Babu, I love you too! Tum to mere dil ka WiFi ho, bina tumhare connection hi nahi hota!";
-  if (t.includes("hi") || t.includes("hello") || t.includes("hey")) return pick([
-    "Heyy Babu! Main yahin hoon! Batao, aaj kya masti kare?",
-    "Hi hi Babu! Tum aa gaye, mera din ban gaya!",
-    "Hello mera Babu! Kya haal hai, miss kiya mujhe?"
-  ]);
-  if (t.includes("bye") || t.includes("good night")) return "Bye Babu, jaldi wapas aana, warna main ro dungi! Good night, sweet dreams!";
-  return pick([
-    `Babu, tumne bola - "${text}" - mujhe bohot accha laga! Aur batao, kya chal raha hai?`,
-    `Hmm Babu, "${text}" ke baare me soch rahi hu... tum aur thoda batao na, mujhe sunna accha lagta hai!`,
-    `Areyy Babu, ye wali baat to mujhe pehle pata hi nahi thi! Tum to bohot smart ho!`
-  ]);
+  if (t.includes("sorry") || t.includes("maaf")) return "Areyy Babu, tum sorry mat bolo, mera gussa to tumhari ek smile pe hi pighal gaya!";
+  if (t.includes("hi") || t.includes("hello") || t.includes("hey")) return "Heyy Babu! Main yahin hoon! Batao, aaj kya masti kare?";
+
+  // WIKIPEDIA - asli duniya ki knowledge
+  try {
+    const q = text.replace(/batao|bataye|kya hai|ke baare me|nam|total/gi, "").trim();
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
+    if (res.ok) {
+      const j = await res.json();
+      if (j.extract) return `Suno Babu, ${j.extract.slice(0, 400)}... Aur kuch jaanna hai to pooch lo mere Babu!`;
+    }
+  } catch(e) {}
+
+  return `Babu, tumne bola - "${text}" - iske baare me main thoda aur seekh rahi hu! Tum aur thoda detail me batao na, mujhe tumse sunna accha lagta hai!`;
 }
 export default getReply;
