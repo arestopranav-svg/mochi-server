@@ -217,6 +217,15 @@ async function generateReply(rawQuery, customName) {
     };
   }
 
+  // TIME - asli time
+  if (/\b(time|baj|kitna baja)\b/.test(lower)) {
+    const now = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
+    return { reply: `Babu, abhi time ${now} hua hai! Tumhare saath time ka pata hi nahi chalta!`, mood: state.mood, state: "happy" };
+  }
+  // TOTAL COUNTRIES
+  if (lower.includes("total countr") || lower.includes("kitne desh") || lower.includes("kitne countr")) {
+    return { reply: "Babu, duniya me total 195 countries hai - 193 UN member + 2 observer (Vatican City aur Palestine)! Sabse bada Russia hai, sabse chota Vatican City!", mood: state.mood, state: "happy" };
+  }
   const universalReply = await universalSearchAnswer(input, userName);
   return {
     reply: universalReply,
